@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, Database, Server, Key, User, Activity, CheckCircle, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { Save, Database, Server, Key, User, Activity, CheckCircle, AlertCircle, ArrowLeft, Loader2, Link2, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
 
 export default function SettingsView({ onBack, onConfigSaved }) {
@@ -42,8 +42,8 @@ export default function SettingsView({ onBack, onConfigSaved }) {
         try {
             const response = await axios.post('/api/v1/config', dbConfig);
             if (response.data.success) {
-                alert('配置已保存！');
-                // Trigger refresh of tables in sidebar
+                // Success feedback
+                setStatus('success');
                 if (onConfigSaved) onConfigSaved();
             } else {
                 alert('保存失败: ' + (response.data.error || '未知错误'));
@@ -56,161 +56,170 @@ export default function SettingsView({ onBack, onConfigSaved }) {
     };
 
     return (
-        <div className="flex-1 h-full bg-bg-primary overflow-y-auto">
+        <div className="flex-1 h-full bg-[#fcfcfc] overflow-y-auto custom-scrollbar">
             {/* Header */}
-            <div className="h-14 border-b border-border-color flex items-center justify-between px-6 bg-bg-secondary/30 backdrop-blur-md sticky top-0 z-10">
-                <div className="flex items-center gap-3">
+            <div className="h-16 border-b border-border-color flex items-center justify-between px-8 bg-white/50 backdrop-blur-xl sticky top-0 z-10 transition-all">
+                <div className="flex items-center gap-4">
                     <button
                         onClick={onBack}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-primary text-white text-xs font-medium hover:bg-accent-primary/80 transition-colors"
+                        className="p-2 rounded-xl hover:bg-bg-secondary text-text-secondary transition-all"
                     >
-                        <ArrowLeft size={14} />
-                        返回对话
+                        <ArrowLeft size={20} />
                     </button>
-                    <h2 className="text-lg font-semibold text-text-primary">系统设置</h2>
+                    <h2 className="text-lg font-bold text-text-primary tracking-tight">系统设置</h2>
                 </div>
             </div>
 
-            <div className="p-8 max-w-3xl mx-auto animate-fade-in">
-
-                {/* Section: Database Connection */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-accent-primary/10 flex-center text-accent-primary">
-                            <Database size={24} />
-                        </div>
-                        <div>
-                            <h3 className="text-base font-semibold text-text-primary">数据库配置</h3>
-                            <p className="text-xs text-text-tertiary">配置您的主要数据源连接信息</p>
-                        </div>
-                    </div>
-
-                    <div className="glass-panel rounded-xl p-6 space-y-5 bg-bg-secondary/20">
-
-                        <div className="grid grid-cols-2 gap-5">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
-                                    <Server size={12} /> 主机地址 (Host)
-                                </label>
-                                <input
-                                    type="text"
-                                    name="host"
-                                    value={dbConfig.host}
-                                    onChange={handleChange}
-                                    className="w-full bg-white border border-border-color rounded-lg px-3 py-2 text-sm text-black focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none transition-all placeholder:text-gray-400"
-                                    placeholder="e.g. 127.0.0.1"
-                                />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
-                                    <Activity size={12} /> 端口 (Port)
-                                </label>
-                                <input
-                                    type="text"
-                                    name="port"
-                                    value={dbConfig.port}
-                                    onChange={handleChange}
-                                    className="w-full bg-white border border-border-color rounded-lg px-3 py-2 text-sm text-black focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none transition-all placeholder:text-gray-400"
-                                    placeholder="3306"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-5">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
-                                    <User size={12} /> 用户名 (User)
-                                </label>
-                                <input
-                                    type="text"
-                                    name="user"
-                                    value={dbConfig.user}
-                                    onChange={handleChange}
-                                    className="w-full bg-white border border-border-color rounded-lg px-3 py-2 text-sm text-black focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none transition-all placeholder:text-gray-400"
-                                    placeholder="root"
-                                />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
-                                    <Key size={12} /> 密码 (Password)
-                                </label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    value={dbConfig.password}
-                                    onChange={handleChange}
-                                    className="w-full bg-white border border-border-color rounded-lg px-3 py-2 text-sm text-black focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none transition-all placeholder:text-gray-400"
-                                    placeholder="••••••••"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
-                                <Database size={12} /> 数据库名 (Database Name)
-                            </label>
-                            <input
-                                type="text"
-                                name="database"
-                                value={dbConfig.database}
-                                onChange={handleChange}
-                                className="w-full bg-white border border-border-color rounded-lg px-3 py-2 text-sm text-black focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none transition-all placeholder:text-gray-400"
-                                placeholder="my_database"
-                            />
-                        </div>
-
-                        {/* Actions */}
-                        <div className="pt-4 flex items-center justify-between border-t border-border-color/50">
-                            <div className="flex items-center gap-2">
-                                {status === 'success' && (
-                                    <span className="flex items-center gap-1.5 text-xs text-success bg-success/10 px-2 py-1 rounded-md animate-fade-in">
-                                        <CheckCircle size={12} /> 连接成功
-                                    </span>
-                                )}
-                                {status === 'error' && (
-                                    <span className="flex items-center gap-1.5 text-xs text-error bg-error/10 px-2 py-1 rounded-md animate-fade-in">
-                                        <AlertCircle size={12} /> 连接失败
-                                    </span>
-                                )}
-                            </div>
-
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={handleTestConnection}
-                                    disabled={status === 'testing'}
-                                    className="px-4 py-2 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors disabled:opacity-50"
-                                >
-                                    {status === 'testing' ? '测试中...' : '测试连接'}
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium bg-accent-primary text-white hover:bg-accent-primary/90 transition-all shadow-lg hover:shadow-accent-primary/20 hover:-translate-y-0.5"
-                                >
-                                    <Save size={14} />
-                                    保存配置
-                                </button>
-                            </div>
-                        </div>
-
-                    </div>
+            <div className="p-10 max-w-4xl mx-auto animate-fade-in">
+                {/* Introduction */}
+                <div className="mb-10">
+                    <h3 className="text-3xl font-bold text-text-primary mb-3">连接您的数据</h3>
+                    <p className="text-text-tertiary text-sm leading-relaxed max-w-lg">
+                        配置您的 MySQL 数据库连接。DatabaseAgent 将通过该配置来读取表架构并执行您的自然语言查询。
+                    </p>
                 </div>
 
-                {/* Other Sections Placeholder */}
-                <div className="opacity-50 pointer-events-none filter blur-[1px]">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-bg-tertiary flex-center text-text-secondary">
-                            <Activity size={24} />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {/* Left Panel: Form */}
+                    <div className="md:col-span-2 space-y-8">
+                        {/* Section: Database Connection */}
+                        <div className="bg-white border border-border-color rounded-3xl p-8 shadow-xl shadow-black/[0.02] ring-1 ring-black/[0.02]">
+                            <div className="flex items-center gap-3 mb-8">
+                                <div className="w-10 h-10 rounded-xl bg-accent-secondary/10 flex items-center justify-center text-accent-secondary">
+                                    <Database size={22} />
+                                </div>
+                                <h4 className="text-sm font-bold text-text-primary uppercase tracking-widest">核心数据库配置</h4>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <Input
+                                        label="主机地址"
+                                        name="host"
+                                        value={dbConfig.host}
+                                        onChange={handleChange}
+                                        icon={Server}
+                                        placeholder="127.0.0.1"
+                                    />
+                                    <Input
+                                        label="端口"
+                                        name="port"
+                                        value={dbConfig.port}
+                                        onChange={handleChange}
+                                        icon={Activity}
+                                        placeholder="3306"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <Input
+                                        label="用户名"
+                                        name="user"
+                                        value={dbConfig.user}
+                                        onChange={handleChange}
+                                        icon={User}
+                                        placeholder="root"
+                                    />
+                                    <Input
+                                        label="密码"
+                                        name="password"
+                                        type="password"
+                                        value={dbConfig.password}
+                                        onChange={handleChange}
+                                        icon={Key}
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+
+                                <Input
+                                    label="数据库名称"
+                                    name="database"
+                                    value={dbConfig.database}
+                                    onChange={handleChange}
+                                    icon={Link2}
+                                    placeholder="my_database"
+                                />
+                            </div>
+
+                            <div className="mt-10 pt-8 border-t border-border-color flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    {status === 'success' && (
+                                        <div className="flex items-center gap-2 text-[11px] font-bold text-success bg-success/10 px-3 py-1.5 rounded-full animate-fade-in ring-1 ring-success/20">
+                                            <CheckCircle size={14} /> 连接就绪
+                                        </div>
+                                    )}
+                                    {status === 'error' && (
+                                        <div className="flex items-center gap-2 text-[11px] font-bold text-error bg-error/10 px-3 py-1.5 rounded-full animate-fade-in ring-1 ring-error/20">
+                                            <AlertCircle size={14} /> {errorMsg || '连接失败'}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <button
+                                        onClick={handleTestConnection}
+                                        disabled={status === 'testing'}
+                                        className="px-5 py-2.5 rounded-xl text-xs font-bold text-text-secondary hover:bg-bg-secondary transition-all disabled:opacity-50"
+                                    >
+                                        {status === 'testing' ? (
+                                            <div className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> 测试中</div>
+                                        ) : '测试连接'}
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={saving}
+                                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold bg-accent-primary text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-black/10 disabled:opacity-50"
+                                    >
+                                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={16} />}
+                                        保存更改
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="text-base font-semibold text-text-primary">高级选项 (即将推出)</h3>
-                            <p className="text-xs text-text-tertiary">自定义模型参数与代理行为</p>
+                    </div>
+
+                    {/* Right Panel: Info & Guides */}
+                    <div className="space-y-6">
+                        <div className="bg-accent-secondary/5 border border-accent-secondary/10 rounded-3xl p-6">
+                            <ShieldCheck className="text-accent-secondary mb-4" size={28} />
+                            <h5 className="text-sm font-bold text-text-primary mb-2">数据安全保障</h5>
+                            <p className="text-[11px] text-text-secondary leading-relaxed font-medium">
+                                您的连接信息仅保存在本地 `config.toml` 中，绝不会上传至任何云端服务器。
+                            </p>
+                        </div>
+
+                        <div className="bg-white border border-border-color rounded-3xl p-6 shadow-sm">
+                            <Activity className="text-text-tertiary mb-4" size={24} />
+                            <h5 className="text-sm font-bold text-text-primary mb-2">连接建议</h5>
+                            <ul className="text-[10px] text-text-tertiary space-y-2 font-medium">
+                                <li>• 尽量使用只读权限的数据库账号</li>
+                                <li>• 如果是本地连接，地址请填写 127.0.0.1</li>
+                                <li>• 确保防火墙已放行对应端口</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     );
 }
+
+function Input({ label, icon: Icon, value, onChange, name, placeholder, type = "text" }) {
+    return (
+        <div className="space-y-2">
+            <label className="text-[11px] font-bold text-text-tertiary uppercase tracking-wider ml-1 flex items-center gap-2">
+                {Icon && <Icon size={12} />} {label}
+            </label>
+            <input
+                type={type}
+                name={name}
+                value={value}
+                onChange={onChange}
+                autoComplete="off"
+                className="w-full bg-white border border-border-color rounded-2xl px-4 py-3 text-sm text-text-primary focus:border-accent-secondary focus:ring-4 focus:ring-accent-secondary/5 outline-none transition-all placeholder:text-text-tertiary shadow-sm"
+                placeholder={placeholder}
+            />
+        </div>
+    );
+}
+

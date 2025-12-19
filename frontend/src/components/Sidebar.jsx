@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Database, Settings, Table, Search, ChevronRight, ChevronDown, Plus, MessageSquare, Loader2 } from 'lucide-react';
+import { Table, Search, ChevronRight, ChevronDown, Loader2, Database, AlertCircle, LayoutGrid } from 'lucide-react';
 import { clsx } from 'clsx';
 import axios from 'axios';
 
-export default function Sidebar({ isOpen, onSelectTable, activeView, refreshKey }) {
+export default function Sidebar({ onSelectTable, activeView, refreshKey }) {
     const [expandedTables, setExpandedTables] = useState({});
     const [tables, setTables] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Fetch tables from backend on mount and when refreshKey changes
+    // Fetch tables
     useEffect(() => {
         const fetchTables = async () => {
             try {
@@ -21,133 +21,111 @@ export default function Sidebar({ isOpen, onSelectTable, activeView, refreshKey 
                     if (Array.isArray(tableData)) {
                         setTables(tableData.map(t => typeof t === 'string' ? { name: t, schema: [] } : t));
                     }
-                } else if (response.data.error) {
-                    setError(response.data.error);
+                } else {
+                    // If backend returns success: false with an error message
+                    setError(response.data.error || '无法连接数据库');
+                    setTables([]);
                 }
             } catch (err) {
                 console.error('Failed to fetch tables:', err);
-                setError('无法加载表列表');
+                setError('服务器连接失败');
+                setTables([]);
             } finally {
                 setLoading(false);
             }
         };
-
         fetchTables();
     }, [refreshKey]);
 
     const toggleTable = (tableName) => {
-        setExpandedTables(prev => ({
-            ...prev,
-            [tableName]: !prev[tableName]
-        }));
+        setExpandedTables(prev => ({ ...prev, [tableName]: !prev[tableName] }));
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="w-[280px] bg-bg-secondary flex flex-col border-r border-border-color h-full transition-all duration-300">
-            {/* Header */}
-            <div className="p-4 border-b border-border-color flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-text-primary tracking-wide flex items-center gap-2">
-                    <Database size={16} className="text-accent-primary" />
-                    数据库资源
-                </h2>
-                <button className="text-text-tertiary hover:text-text-primary transition-colors">
-                    <Settings size={16} />
-                </button>
-            </div>
-
-            {/* Connection Info */}
-            <div className="px-4 py-3 bg-bg-tertiary/20">
-                <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2 h-2 rounded-full bg-success"></div>
-                    <span className="text-xs font-medium text-text-primary">Production DB (MySQL)</span>
+        <div className="w-[260px] bg-[#f8f9fa] flex flex-col h-full border-r border-border-color">
+            {/* Header / Context */}
+            <div className="p-5">
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-[13px] font-bold text-text-primary uppercase tracking-widest">数据库大纲</h2>
+                    <LayoutGrid size={15} className="text-text-tertiary" />
                 </div>
-                <div className="text-[10px] text-text-tertiary font-mono">host: aws-rds-primary</div>
-            </div>
 
-            {/* Search */}
-            <div className="p-3">
-                <div className="relative">
-                    <Search size={14} className="absolute left-3 top-2.5 text-text-tertiary" />
+                {/* Search Bar */}
+                <div className="relative group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary group-focus-within:text-accent-primary transition-colors" size={14} />
                     <input
                         type="text"
-                        placeholder="搜索表..."
-                        className="w-full bg-bg-primary rounded-md pl-9 pr-3 py-2 text-xs text-text-primary border border-border-color focus:border-accent-primary focus:outline-none transition-colors"
+                        placeholder="搜索数据表..."
+                        className="w-full bg-white border border-border-color rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-accent-primary focus:ring-4 focus:ring-accent-primary/5 transition-all shadow-sm"
                     />
                 </div>
             </div>
 
             {/* Table List */}
-            <div className="flex-1 overflow-y-auto px-2 space-y-1">
-                <h3 className="px-2 py-2 text-[10px] font-bold text-text-tertiary uppercase tracking-wider">
-                    表列表 {!loading && `(${tables.length})`}
-                </h3>
-
-                {loading && (
-                    <div className="flex items-center justify-center py-8">
-                        <Loader2 size={20} className="animate-spin text-accent-primary" />
-                        <span className="ml-2 text-xs text-text-tertiary">加载中...</span>
+            <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1 custom-scrollbar">
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-3">
+                        <Loader2 size={20} className="animate-spin text-accent-secondary" />
+                        <span className="text-[11px] text-text-tertiary font-medium">正在读取架构...</span>
                     </div>
-                )}
-
-                {error && !loading && (
-                    <div className="text-xs text-error px-2 py-4">{error}</div>
-                )}
-
-                {!loading && !error && tables.length === 0 && (
-                    <div className="text-xs text-text-tertiary px-2 py-4">暂无表数据</div>
-                )}
-
-                {!loading && tables.map(table => (
-                    <div key={table.name} className="group">
+                ) : error ? (
+                    <div className="px-3 py-6 text-center">
+                        <div className="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-3">
+                            <AlertCircle size={18} className="text-error" />
+                        </div>
+                        <p className="text-[11px] font-semibold text-text-secondary px-2">{error}</p>
                         <button
-                            onClick={() => toggleTable(table.name)}
-                            className="w-full flex items-center px-2 py-1.5 rounded-md hover:bg-bg-tertiary/50 text-text-secondary hover:text-text-primary transition-colors text-xs"
+                            onClick={() => onSelectTable('settings')}
+                            className="mt-4 text-[10px] text-accent-secondary font-bold hover:underline"
                         >
-                            {expandedTables[table.name] ? (
-                                <ChevronDown size={14} className="mr-1.5 text-text-tertiary" />
-                            ) : (
-                                <ChevronRight size={14} className="mr-1.5 text-text-tertiary" />
-                            )}
-                            <Table size={14} className="mr-2 text-accent-secondary" />
-                            <span className="truncate">{table.name}</span>
+                            去配置数据库 →
                         </button>
+                    </div>
+                ) : (
+                    <div className="space-y-1">
+                        {tables.map(table => (
+                            <div key={table.name} className="group">
+                                <button
+                                    onClick={() => toggleTable(table.name)}
+                                    className={clsx(
+                                        "w-full flex items-center px-2.5 py-2 rounded-xl transition-all duration-200 text-[13px]",
+                                        expandedTables[table.name] ? "bg-white text-text-primary shadow-sm ring-1 ring-black/5" : "text-text-secondary hover:bg-white/60 hover:text-text-primary"
+                                    )}
+                                >
+                                    <Table size={15} className={clsx("mr-2.5", expandedTables[table.name] ? "text-accent-secondary" : "text-text-tertiary")} />
+                                    <span className="truncate font-medium">{table.name}</span>
+                                    <ChevronRight size={14} className={clsx("ml-auto text-text-tertiary transition-transform duration-200", expandedTables[table.name] && "rotate-90")} />
+                                </button>
 
-                        {/* Schema Columns (Expanded) */}
-                        {expandedTables[table.name] && (
-                            <div className="ml-7 pl-2 border-l border-border-color/50 my-1 space-y-1">
-                                {table.schema.map(col => (
-                                    <div key={col} className="text-[10px] text-text-tertiary hover:text-text-secondary py-0.5 cursor-default truncate">
-                                        {col}
+                                {/* Column Schema - Placeholder for now */}
+                                {expandedTables[table.name] && (
+                                    <div className="mt-1 ml-6 pl-3 border-l-2 border-border-color space-y-1 animate-slide-down">
+                                        <div className="text-[11px] text-text-tertiary py-1 italic">正在加载列...</div>
                                     </div>
-                                ))}
+                                )}
+                            </div>
+                        ))}
+
+                        {tables.length === 0 && !loading && !error && (
+                            <div className="text-center py-10">
+                                <Database size={24} className="mx-auto text-text-tertiary mb-3 opacity-20" />
+                                <p className="text-[11px] text-text-tertiary">没有找到任何表</p>
                             </div>
                         )}
                     </div>
-                ))}
+                )}
             </div>
 
-            {/* Footer Navigation */}
-            <div className="p-4 border-t border-border-color bg-bg-tertiary/10 space-y-2">
-                {activeView === 'settings' ? (
-                    <button
-                        onClick={() => onSelectTable('chat')}
-                        className="flex items-center gap-3 w-full p-2.5 bg-accent-primary text-white rounded-lg transition-colors text-xs font-medium hover:bg-accent-primary/80"
-                    >
-                        <MessageSquare size={16} />
-                        <span>返回对话</span>
-                    </button>
-                ) : (
-                    <button
-                        onClick={() => onSelectTable('settings')}
-                        className="flex items-center gap-3 w-full p-2 hover:bg-bg-tertiary rounded-lg transition-colors text-text-secondary hover:text-text-primary text-xs"
-                    >
-                        <Settings size={16} />
-                        <span>系统设置</span>
-                    </button>
-                )}
+            {/* Bottom Status Panel */}
+            <div className="p-4 border-t border-border-color bg-white/50">
+                <div className="flex items-center gap-3">
+                    <div className={clsx("w-2 h-2 rounded-full", tables.length > 0 ? "bg-success shadow-success/40 shadow-lg" : "bg-text-tertiary")} />
+                    <span className="text-[10px] font-bold text-text-secondary uppercase tracking-tight">
+                        {tables.length > 0 ? `已连接 (${tables.length} 个表)` : '未连接数据库'}
+                    </span>
+                </div>
             </div>
         </div>
     );
 }
+
