@@ -6,6 +6,8 @@ export function useChat() {
     ]);
     const [status, setStatus] = useState('disconnected'); // disconnected, connecting, connected, error
     const [isThinking, setIsThinking] = useState(false);
+    const [logs, setLogs] = useState([]); // 存储工作日志
+    const [currentStatus, setCurrentStatus] = useState(''); // 当前进度提示
 
     const wsRef = useRef(null);
 
@@ -60,6 +62,8 @@ export function useChat() {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
             // Add user message immediately
             setMessages(prev => [...prev, { role: 'user', content }]);
+            setLogs([]); // 清空旧日志
+            setCurrentStatus('🤔 正在准备...');
 
             wsRef.current.send(JSON.stringify({ content }));
         } else {
@@ -68,7 +72,7 @@ export function useChat() {
     }, []);
 
     const handleServerMessage = (data) => {
-        // data structure: { type: 'system'|'response'|'status'|'error', content: string, status?: string }
+        // data structure: { type: 'system'|'response'|'status'|'error'|'thought'|'tool_call', content: string, status?: string }
 
         switch (data.type) {
             case 'system':
@@ -77,14 +81,25 @@ export function useChat() {
             case 'response':
                 setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
                 setIsThinking(false);
+                setCurrentStatus('');
                 break;
             case 'status':
                 setIsThinking(true);
-                // Optional: show status toast or temporary message
+                setCurrentStatus(data.content);
+                break;
+            case 'thought':
+            case 'tool_call':
+                console.log('📋 Received log data:', data);
+                setIsThinking(true); // 只要有日志动作，就在思考
+                setLogs(prev => [...prev, data]);
+                if (data.content) {
+                    setCurrentStatus(data.content);
+                }
                 break;
             case 'error':
                 setMessages(prev => [...prev, { role: 'error', content: data.content }]);
                 setIsThinking(false);
+                setCurrentStatus('');
                 break;
             default:
                 console.log('Unknown message type:', data);
@@ -100,6 +115,8 @@ export function useChat() {
         messages,
         status,
         isThinking,
+        logs,
+        currentStatus,
         sendMessage,
         reconnect: connect
     };

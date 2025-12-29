@@ -90,16 +90,75 @@ class EnhancedDatabaseQueryAgent(MCPAgent):
         await self._preload_basic_metadata()
 
         # 配置元数据策略
-        self._report_status("⚙️ 正在配置元数据加载策略...")
+        await self._report_status("⚙️ 正在配置元数据加载策略...")
         await self._inject_metadata_with_strategy()
 
-        self._report_status("✅ 初始化完成")
+        await self._report_status("✅ 初始化完成")
 
-    def _report_status(self, message: str):
+    async def _report_status(
+        self, message: str, type: str = "status", data: Optional[Dict] = None
+    ):
         """报告当前状态"""
         if self._status_callback:
-            self._status_callback(message)
-        logger.info(message)
+            if isinstance(message, dict):
+                if asyncio.iscoroutinefunction(self._status_callback):
+                    await self._status_callback(message)
+                else:
+                    self._status_callback(message)
+            else:
+                payload = {"content": message, "type": type}
+                if data:
+                    payload.update(data)
+
+                if asyncio.iscoroutinefunction(self._status_callback):
+                    await self._status_callback(payload)
+                else:
+                    self._status_callback(payload)
+        logger.info(f"[{type}] {message}")
+
+    async def think(self) -> bool:
+        """决定下一步操作"""
+        await self._report_status("🤔 正在思考下一步操作...", type="thought")
+        return await super().think()
+
+    async def _handle_special_tool(self, name: str, result: Any, **kwargs) -> None:
+        """处理特殊工具调用并报告状态"""
+        tool_input = kwargs.get("tool_input", {})
+        clean_name = name.split("_")[-1] if "_" in name else name
+
+        # 如果是 terminate 工具，就不再上报“正在执行”的状态，避免 UI 卡顿感
+        if "terminate" in name.lower():
+            await super()._handle_special_tool(name, result, **kwargs)
+            return
+
+        if "get_table_schema" in name:
+            await self._report_status(
+                f"📥 正在获取表结构: {tool_input.get('table', '')}",
+                type="tool_call",
+                data={"tool": clean_name, "input": tool_input},
+            )
+        elif "execute_sql" in name:
+            # 修正：工具实际使用的参数名是 query 而不是 sql
+            sql = tool_input.get("query", "")
+            await self._report_status(
+                "⚡ 正在执行SQL查询...",
+                type="tool_call",
+                data={"tool": clean_name, "input": tool_input, "sql": sql},
+            )
+        elif "list_tables" in name:
+            await self._report_status(
+                "📋 正在获取表列表...",
+                type="tool_call",
+                data={"tool": clean_name, "input": tool_input},
+            )
+        else:
+            await self._report_status(
+                f"🔧 正在执行: {clean_name}",
+                type="tool_call",
+                data={"tool": clean_name, "input": tool_input},
+            )
+
+        await super()._handle_special_tool(name, result, **kwargs)
 
     async def reset(self):
         """重置代理状态（保留连接）"""
@@ -335,22 +394,6 @@ class EnhancedDatabaseQueryAgent(MCPAgent):
 
         return relationships
 
-    async def _handle_special_tool(self, name: str, result: Any, **kwargs) -> None:
-        """处理特殊工具调用并报告状态"""
-        tool_input = kwargs.get("tool_input", {})
-
-        if "get_table_schema" in name:
-            self._report_status("📥 正在获取表结构...")
-        elif "execute_sql" in name:
-            self._report_status("⚡ 正在执行SQL查询...")
-        elif "list_tables" in name:
-            self._report_status("📋 正在获取表列表...")
-        else:
-            clean_name = name.split("_")[-1] if "_" in name else name
-            self._report_status(f"🔧 正在执行: {clean_name}")
-
-        await super()._handle_special_tool(name, result, **kwargs)
-
     def _should_finish_execution(self, name: str, **kwargs) -> bool:
         """判断是否应该结束执行"""
         return name.lower() == "terminate" or "terminate" in name.lower()
@@ -373,6 +416,7 @@ class EnhancedDatabaseQueryAgent(MCPAgent):
             result = await super(MCPAgent, self).run(
                 request, auto_cleanup=False, **kwargs
             )
+            logger.info(f"✨ EnhancedDatabaseQueryAgent raw result: {result}")
         finally:
             pass
 
@@ -380,20 +424,44 @@ class EnhancedDatabaseQueryAgent(MCPAgent):
         self.state = AgentState.IDLE
 
         # 尝试从消息历史中获取最后的助手回复
+        import re
+
+        final_content = ""
         if hasattr(self, "messages") and self.messages:
             for message in reversed(self.messages):
                 if hasattr(message, "role") and message.role == "assistant":
                     content = message.content.strip() if message.content else ""
-                    if len(content) > 10 and not content.startswith("Observed output"):
-                        return content
+                    # 排除掉观察输出和明显的 meta 信息
+                    if len(content) > 0 and not content.startswith("Observed output"):
+                        final_content = content
+                        break
 
-        # 尝试从terminate工具输出中获取结果
-        if "Observed output of cmd `terminate` executed:" in result:
+        # 如果没找到，尝试从 terminate 结果中提取
+        if (
+            not final_content
+            and "Observed output of cmd `terminate` executed:" in result
+        ):
             parts = result.split("Observed output of cmd `terminate` executed:")
             if len(parts) > 1:
-                return parts[1].strip()
+                final_content = parts[1].strip()
 
-        return result or "查询完成但未获得结果"
+        # 降级方案：如果还是没有内容，使用 result 本身
+        if not final_content:
+            if "Thinking complete - no action needed" in result:
+                final_content = "抱歉，由于模型未生成有效指令或环境限制，我暂时无法回答。这通常是因为当前上下文或提示词导致分析中断。请尝试微调您的问题。"
+            else:
+                final_content = result or "任务执行完毕，但未提取到有效结论。"
+
+        # 过滤掉 SQL 代码块，因为它们会显示在侧边栏日志中
+        cleaned_content = re.sub(
+            r"```(?:sql)?\n?[\s\S]*?```", "", final_content
+        ).strip()
+
+        # 如果过滤后为空，但原内容包含 SQL，说明 AI 只给了 SQL 没给结论
+        if not cleaned_content and "```" in final_content:
+            return "分析已完成。由于未生成自然语言总结，请在右侧“分析详情”中查看具体执行流程及结果。"
+
+        return cleaned_content or "任务已执行。"
 
     async def _execute_mcp_tool(self, tool_name: str, arguments: dict):
         """执行MCP工具"""

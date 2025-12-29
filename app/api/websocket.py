@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import sys
@@ -46,6 +47,18 @@ async def websocket_endpoint(websocket: WebSocket):
             )
         )
 
+        # Define status callback for WebSocket
+        async def status_callback(payload):
+            logger.info(f"📤 Sending status payload to client: {payload}")
+            if isinstance(payload, dict):
+                await websocket.send_text(json.dumps(payload))
+            else:
+                await websocket.send_text(
+                    json.dumps(
+                        {"type": "status", "content": str(payload), "status": "busy"}
+                    )
+                )
+
         while True:
             # Receive message from client
             data = await websocket.receive_text()
@@ -59,13 +72,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Notify client that processing started
                 await websocket.send_text(
                     json.dumps(
-                        {"type": "status", "content": "Thinking...", "status": "busy"}
+                        {
+                            "type": "status",
+                            "content": "🤔 Thinking...",
+                            "status": "busy",
+                        }
                     )
                 )
 
-                # Run the agent
-                # Note: This is currently a blocking call until completion
-                result = await agent.run(user_query)
+                # Run the agent with the status callback
+                result = await agent.run(user_query, status_callback=status_callback)
 
                 # Send final result
                 await websocket.send_text(

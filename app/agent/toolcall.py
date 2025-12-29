@@ -181,7 +181,7 @@ class ToolCallAgent(ReActAgent):
             result = await self.available_tools.execute(name=name, tool_input=args)
 
             # Handle special tools
-            await self._handle_special_tool(name=name, result=result)
+            await self._handle_special_tool(name=name, result=result, tool_input=args)
 
             # Check if result is a ToolResult with base64_image
             if hasattr(result, "base64_image") and result.base64_image:
@@ -242,9 +242,11 @@ class ToolCallAgent(ReActAgent):
                     )
         logger.info(f"✨ Cleanup complete for agent '{self.name}'.")
 
-    async def run(self, request: Optional[str] = None, auto_cleanup: bool = True) -> str:
+    async def run(
+        self, request: Optional[str] = None, auto_cleanup: bool = True
+    ) -> str:
         """Run the agent with optional cleanup when done.
-        
+
         Args:
             request: Optional initial user request to process.
             auto_cleanup: Whether to automatically cleanup after execution.

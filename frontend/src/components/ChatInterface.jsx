@@ -5,10 +5,23 @@ import ReactMarkdown from 'react-markdown';
 import { useChat } from '../hooks/useChat';
 
 export default function ChatInterface() {
-    const { messages, status, isThinking, sendMessage } = useChat();
+    const { messages, status, isThinking, logs, currentStatus, sendMessage } = useChat();
     const [input, setInput] = useState('');
     const [showDetails, setShowDetails] = useState(false);
     const messagesEndRef = useRef(null);
+    const logsEndRef = useRef(null);
+
+    // 自动滚动到日志底部
+    useEffect(() => {
+        logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [logs]);
+
+    // 自动打开侧边栏
+    useEffect(() => {
+        if (isThinking && !showDetails) {
+            setShowDetails(true);
+        }
+    }, [isThinking]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -89,7 +102,7 @@ export default function ChatInterface() {
                                 </div>
                                 <div className="flex items-center gap-3 text-xs text-text-secondary bg-white border border-border-color/60 px-5 py-3 rounded-2xl rounded-tl-sm shadow-sm ring-1 ring-black/5">
                                     <Loader2 size={14} className="animate-spin text-accent-secondary" />
-                                    <span className="font-medium">思考中...</span>
+                                    <span className="font-medium">{currentStatus || '思考中...'}</span>
                                 </div>
                             </div>
                         )}
@@ -142,24 +155,56 @@ export default function ChatInterface() {
                             分析详情
                         </h3>
                     </header>
-                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                        <div className="space-y-6">
-                            <div>
-                                <h4 className="text-[11px] font-bold text-text-tertiary uppercase mb-4 tracking-wider px-1">当前会话摘要</h4>
-                                <div className="bg-white border border-border-color rounded-2xl p-4 shadow-sm ring-1 ring-black/5">
-                                    <p className="text-xs text-text-secondary leading-relaxed">
-                                        该对话旨在通过自然语言协助您管理和查询数据库。您可以在此查看生成的 SQL 语句及其执行结果。
-                                    </p>
+                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                        <div className="space-y-4">
+                            {logs.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-20 opacity-30">
+                                    <Terminal size={32} className="mb-4" />
+                                    <p className="text-[10px] uppercase font-bold tracking-[0.2em]">等待执行日志</p>
                                 </div>
-                            </div>
-
-                            <div>
-                                <h4 className="text-[11px] font-bold text-text-tertiary uppercase mb-4 tracking-wider px-1">SQL 预览</h4>
-                                <div className="bg-[#1a1c1e] text-[#e9ecef] rounded-2xl p-4 font-mono text-[11px] shadow-lg overflow-hidden relative">
-                                    <div className="absolute top-0 right-0 p-2 opacity-50"><Copy size={12} /></div>
-                                    <code>-- 等待查询输入...</code>
-                                </div>
-                            </div>
+                            ) : (
+                                <>
+                                    {logs
+                                        .filter(log => log.type !== 'thought' || log.sql || log.tool)
+                                        .map((log, i) => (
+                                            <div key={i} className="animate-fade-in space-y-2">
+                                                <div className="flex items-center gap-2 px-1">
+                                                    <div className={clsx(
+                                                        "w-1.5 h-1.5 rounded-full shadow-sm",
+                                                        log.type === 'thought' ? "bg-accent-secondary" : "bg-success"
+                                                    )} />
+                                                    <h4 className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">
+                                                        {log.type === 'thought' ? '工作思路' : `工具执行: ${log.tool || '未知'}`}
+                                                    </h4>
+                                                </div>
+                                                <div className="bg-white border border-border-color/60 rounded-xl p-3 shadow-sm ring-1 ring-black/[0.02]">
+                                                    <p className="text-[11px] text-text-secondary leading-relaxed">
+                                                        {log.content}
+                                                    </p>
+                                                    {log.sql && (
+                                                        <div className="mt-2.5 bg-[#0d1117] text-[#e6edf3] rounded-lg p-3 font-mono text-[10px] shadow-inner overflow-x-auto relative group/sql">
+                                                            <div className="absolute top-2 right-2 opacity-0 group-hover/sql:opacity-100 transition-opacity">
+                                                                <Copy size={10} className="text-gray-500 hover:text-white cursor-pointer" />
+                                                            </div>
+                                                            <code className="whitespace-pre-wrap">{log.sql}</code>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    {!isThinking && logs.length > 0 && (
+                                        <div className="animate-fade-in space-y-2">
+                                            <div className="flex items-center gap-2 px-1">
+                                                <div className="w-1.5 h-1.5 rounded-full shadow-sm bg-green-500" />
+                                                <h4 className="text-[10px] font-bold text-green-600 uppercase tracking-wider">
+                                                    ✓ 分析完成
+                                                </h4>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                            <div ref={logsEndRef} />
                         </div>
                     </div>
                 </div>
