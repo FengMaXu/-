@@ -114,7 +114,9 @@ class DatabaseSettings(BaseModel):
     password: str = Field(..., description="Database password")
     database: str = Field(..., description="Database name")
     charset: str = Field(default="utf8mb4", description="Database charset")
-    collation: str = Field(default="utf8mb4_unicode_ci", description="Database collation")
+    collation: str = Field(
+        default="utf8mb4_unicode_ci", description="Database collation"
+    )
     autocommit: bool = Field(default=True, description="Enable autocommit")
     sql_mode: str = Field(default="TRADITIONAL", description="SQL mode")
     read_only_user: Optional[str] = Field(
@@ -128,11 +130,15 @@ class DatabaseSettings(BaseModel):
     def from_env(cls) -> "DatabaseSettings":
         """Create database settings from environment variables with fallback to config file"""
         import os
-        
+
         # Try environment variables first (for MySQL MCP Server compatibility)
         env_config = {
             "host": os.getenv("MYSQL_HOST"),
-            "port": int(os.getenv("MYSQL_PORT", "3306")) if os.getenv("MYSQL_PORT") else None,
+            "port": (
+                int(os.getenv("MYSQL_PORT", "3306"))
+                if os.getenv("MYSQL_PORT")
+                else None
+            ),
             "user": os.getenv("MYSQL_USER"),
             "password": os.getenv("MYSQL_PASSWORD"),
             "database": os.getenv("MYSQL_DATABASE"),
@@ -143,14 +149,14 @@ class DatabaseSettings(BaseModel):
             "read_only_user": os.getenv("MYSQL_READONLY_USER"),
             "read_only_password": os.getenv("MYSQL_READONLY_PASSWORD"),
         }
-        
+
         # Filter out None values
         env_config = {k: v for k, v in env_config.items() if v is not None}
-        
+
         # If we have required fields from environment, use them
         if all(env_config.get(key) for key in ["user", "password", "database"]):
             return cls(**env_config)
-        
+
         # Otherwise, try to get from config file
         try:
             # Try to load from the global config instance
@@ -168,24 +174,24 @@ class DatabaseSettings(BaseModel):
                     autocommit=db_config.autocommit,
                     sql_mode=db_config.sql_mode,
                     read_only_user=db_config.read_only_user,
-                    read_only_password=db_config.read_only_password
+                    read_only_password=db_config.read_only_password,
                 )
         except:
             pass
-        
+
         # If neither environment variables nor config file has required fields
         missing = []
         for key in ["user", "password", "database"]:
             if not env_config.get(key):
                 missing.append(f"MYSQL_{key.upper()}")
-        
+
         if missing:
             raise ValueError(
                 f"Missing required database configuration. "
                 f"Please set environment variables: {', '.join(missing)} "
                 f"or configure database settings in config.toml"
             )
-        
+
         return cls(**env_config)
 
     def to_env_dict(self) -> dict:
@@ -386,12 +392,16 @@ class Config:
             run_flow_settings = RunflowSettings(**run_flow_config)
         else:
             run_flow_settings = RunflowSettings()
-            
-        database_config = raw_config.get("database")
+
+        # Helper to get first non-empty value
+        database_config = raw_config.get("mysql")
+        if not database_config:
+            database_config = raw_config.get("database")
+
         database_settings = None
         if database_config:
             database_settings = DatabaseSettings(**database_config)
-        
+
         config_dict = {
             "llm": {
                 "default": default_settings,

@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { useChat } from '../hooks/useChat';
 
 export default function ChatInterface() {
-    const { messages, status, isThinking, logs, currentStatus, sendMessage } = useChat();
+    const { messages, status, isThinking, logs, currentStatus, sendMessage, reconnect } = useChat();
     const [input, setInput] = useState('');
     const [showDetails, setShowDetails] = useState(false);
     const messagesEndRef = useRef(null);
@@ -33,7 +33,12 @@ export default function ChatInterface() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!input.trim() || status !== 'connected') return;
+        if (!input.trim()) return;
+        // 如果断开连接，先尝试重连
+        if (status !== 'connected') {
+            reconnect();
+            return;
+        }
         sendMessage(input);
         setInput('');
     };
@@ -121,11 +126,10 @@ export default function ChatInterface() {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="输入您想查询的内容..."
-                                className="w-full bg-transparent border-none text-text-primary p-5 pr-16 resize-none min-h-[80px] max-h-[240px] focus:outline-none placeholder:text-text-tertiary text-sm leading-relaxed"
-                                disabled={status !== 'connected'}
+                                placeholder={status !== 'connected' ? "连接中，请稍候..." : "输入您想查询的内容..."}
+                                className="w-full bg-transparent border-none text-text-primary px-5 py-3 pr-16 resize-none min-h-[48px] max-h-[160px] focus:outline-none placeholder:text-text-tertiary text-sm leading-relaxed"
                             />
-                            <div className="absolute right-4 bottom-4 flex items-center gap-2">
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                                 <button
                                     type="submit"
                                     disabled={!input.trim() || status !== 'connected'}
