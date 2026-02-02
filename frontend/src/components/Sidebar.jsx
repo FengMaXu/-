@@ -45,11 +45,6 @@ export default function Sidebar({ onSelectTable, activeView, refreshKey }) {
         <div className="w-[260px] bg-[#f8f9fa] flex flex-col h-full border-r border-border-color">
             {/* Header / Context */}
             <div className="p-5">
-                <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-[13px] font-bold text-text-primary uppercase tracking-widest">数据库大纲</h2>
-                    <LayoutGrid size={15} className="text-text-tertiary" />
-                </div>
-
                 {/* Search Bar */}
                 <div className="relative group">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary group-focus-within:text-accent-primary transition-colors" size={14} />

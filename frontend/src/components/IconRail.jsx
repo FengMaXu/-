@@ -1,6 +1,7 @@
 import React from 'react';
 import { MessageSquare, Settings, Database, History, HelpCircle, User, Plus } from 'lucide-react';
 import { clsx } from 'clsx';
+import logo from '../assets/logo.png';
 
 export default function IconRail({ activeView, onNav }) {
     const navItems = [
@@ -10,10 +11,15 @@ export default function IconRail({ activeView, onNav }) {
     ];
 
     return (
-        <div className="w-[68px] bg-[#fdfdfd] border-r border-border-color flex flex-col items-center py-6 gap-8 h-full z-20">
-            {/* Logo */}
-            <div className="w-10 h-10 rounded-xl bg-accent-primary text-white flex items-center justify-center shadow-lg shadow-accent-primary/20">
-                <Database size={22} strokeWidth={2.5} />
+        <div className="w-[68px] bg-[#fdfdfd] border-r border-border-color flex flex-col items-center pt-4 pb-6 gap-8 h-full z-20">
+            {/* Logo and Branding */}
+            <div className="flex flex-col items-center gap-0 mb-2">
+                <div className="w-12 h-12 flex items-center justify-center p-1">
+                    <img src={logo} alt="Logo" className="max-w-full max-h-full object-contain" />
+                </div>
+                <span className="text-[14px] text-text-primary font-bold tracking-tight whitespace-nowrap font-serif">
+                    your DB
+                </span>
             </div>
 
             {/* Main Nav */}
