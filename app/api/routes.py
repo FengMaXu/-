@@ -1,10 +1,13 @@
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from pydantic import BaseModel
+from typing import Optional, List, Dict
 import shutil
 import os
 from pathlib import Path
 import toml
 import pymysql
+from app.config import config
+from app.llm import LLM
 
 router = APIRouter()
 
@@ -20,6 +23,17 @@ class DatabaseConfig(BaseModel):
     user: str = "root"
     password: str = ""
     database: str = ""
+
+
+class LLMConfig(BaseModel):
+    api_type: str = "openai"
+    model: str = ""
+    base_url: str = ""
+    api_key: str = ""
+    api_version: str = ""
+    max_tokens: int = 4096
+    temperature: float = 0.7
+    models: Optional[List[str]] = None
 
 
 @router.get("/health")
@@ -118,6 +132,65 @@ async def get_tables():
 
     except Exception as e:
         return {"tables": [], "success": False, "error": str(e)}
+
+
+@router.get("/llm/config")
+async def get_llm_config():
+    """Get current LLM configurations from config.toml."""
+    try:
+        if not CONFIG_PATH.exists():
+            return {"success": False, "error": "配置文件不存在"}
+
+        config_data = toml.load(CONFIG_PATH)
+        return {
+            "success": True,
+            "config": {
+                "llm": config_data.get("llm", {}),
+                "providers": config_data.get("providers", {}),
+            },
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/providers/settings/sync")
+async def sync_provider_settings(data: dict):
+    """
+    Real-time sync endpoint for LLM provider settings.
+    Follows project framework: { agentProvider, agentConfig, defaultModel }
+    """
+    try:
+        # 1. Update config loader (persists to disk and reloads memory)
+        config.update_from_settings(data)
+
+        # 2. Clear LLM client cache to force re-initialization on next use
+        LLM.clear_cache()
+
+        return {"success": True, "message": "Settings synchronized successfully"}
+    except Exception as e:
+        import traceback
+
+        print(f"Sync error: {traceback.format_exc()}")
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/llm/config")
+async def save_llm_config(data: dict):
+    """Legacy endpoint for backward compatibility"""
+    try:
+        # Map old format to new sync framework
+        sync_data = {
+            "agentProvider": data.get("id", "").replace("providers.", ""),
+            "agentConfig": data.get("config"),
+            "defaultModel": (
+                data.get("config", {}).get("model")
+                if data.get("set_as_default")
+                else None
+            ),
+        }
+        return await sync_provider_settings(sync_data)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @router.post("/upload")

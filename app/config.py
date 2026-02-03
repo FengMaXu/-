@@ -1,6 +1,7 @@
 import json
 import threading
 import tomllib
+import toml
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -283,7 +284,7 @@ class AppConfig(BaseModel):
 
 class Config:
     _instance = None
-    _lock = threading.Lock()
+    _lock = threading.RLock()
     _initialized = False
 
     def __new__(cls):
@@ -298,8 +299,67 @@ class Config:
             with self._lock:
                 if not self._initialized:
                     self._config = None
-                    self._load_initial_config()
+                    self.reload()
                     self._initialized = True
+
+    def reload(self):
+        """Reload configuration from disk"""
+        with self._lock:
+            self._load_initial_config()
+
+    def update_from_settings(self, settings: dict):
+        """Update configuration from a settings dictionary and persist to disk"""
+        with self._lock:
+            config_path = self._get_config_path()
+            with config_path.open("r", encoding="utf-8") as f:
+                config_data = toml.load(f)
+
+            # Map from frontend sync framework to backend config structure
+            provider = settings.get("agentProvider")
+            config = settings.get("agentConfig", {})
+            default_model = settings.get("defaultModel")
+
+            if provider:
+                if "llm" not in config_data:
+                    config_data["llm"] = {}
+
+                # Backend expects specialized configs nested inside [llm]
+                # Frontend apiKey -> Backend api_key, baseUrl -> base_url
+                backend_config = {
+                    "api_type": config.get("apiType")
+                    or config.get("api_type", "openai"),
+                    "api_key": config.get("apiKey") or config.get("api_key", ""),
+                    "base_url": config.get("baseUrl") or config.get("base_url", ""),
+                    "model": config.get("model", ""),
+                    "temperature": config.get("temperature", 1.0),
+                    "max_tokens": config.get("maxTokens")
+                    or config.get("max_tokens", 4096),
+                    "api_version": config.get("apiVersion")
+                    or config.get("api_version", ""),
+                }
+
+                # Filter out None
+                backend_config = {
+                    k: v for k, v in backend_config.items() if v is not None
+                }
+
+                config_data["llm"][provider] = backend_config
+
+                # Also update a separate [providers] section if it exists, for frontend UI consistency
+                if "providers" not in config_data:
+                    config_data["providers"] = {}
+                config_data["providers"][provider] = backend_config
+
+                # If it's the default, sync to top-level [llm]
+                if default_model == backend_config.get("model"):
+                    for k, v in backend_config.items():
+                        config_data["llm"][k] = v
+
+            with config_path.open("w", encoding="utf-8") as f:
+                toml.dump(config_data, f)
+
+            # Reload internal state
+            self._load_initial_config()
 
     @staticmethod
     def _get_config_path() -> Path:

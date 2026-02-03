@@ -183,6 +183,11 @@ class LLM:
             cls._instances[config_name] = instance
         return cls._instances[config_name]
 
+    @classmethod
+    def clear_cache(cls):
+        """Clear all cached LLM instances to force re-initialization with new config"""
+        cls._instances = {}
+
     def __init__(
         self, config_name: str = "default", llm_config: Optional[LLMSettings] = None
     ):

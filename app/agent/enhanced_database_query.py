@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, List, Optional
 from pydantic import Field
 
 from app.agent.mcp import MCPAgent
+from app.llm import LLM
 from app.logger import logger
 from app.prompt.database_query import (
     DATABASE_QUERY_NEXT_STEP,
@@ -410,6 +411,8 @@ class EnhancedDatabaseQueryAgent(MCPAgent):
 
         if self.state == AgentState.IDLE and self.current_step == 0:
             self.query_results = None
+            # Refresh LLM instance to pick up any global config changes
+            self.llm = LLM()
             self._report_status("🤔 正在分析您的问题...")
 
         try:

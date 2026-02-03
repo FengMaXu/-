@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+
+# Trigger reload for config change
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as api_router
 from app.api.websocket import router as ws_router
