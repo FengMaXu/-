@@ -107,3 +107,6 @@ python run.py -f queries.txt
 ---
 
 *Made with ❤️ by AI Agent Team*
+
+启动后端：python -m uvicorn app.api.server:app --reload
+启动前端：cd frontend && npm run dev

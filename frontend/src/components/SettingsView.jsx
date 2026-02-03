@@ -33,19 +33,20 @@ export default function SettingsView({ onBack, onConfigSaved }) {
     const [saving, setSaving] = useState(false);
     const [isAddingModel, setIsAddingModel] = useState(false);
     const [newModelName, setNewModelName] = useState('');
+    const [isDirty, setIsDirty] = useState(false);
 
     useEffect(() => {
         fetchConfigs();
     }, []);
 
     useEffect(() => {
-        if (activeMainTab === 'model' && llmConfigs.providers[activeProviderId]) {
+        if (activeMainTab === 'model' && llmConfigs.providers[activeProviderId] && isDirty) {
             const timer = setTimeout(() => {
                 handleSaveLlm();
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, [llmConfigs.providers, isDefault, activeProviderId, activeMainTab]);
+    }, [llmConfigs.providers, isDefault, activeProviderId, activeMainTab, isDirty]);
 
     const fetchConfigs = async () => {
         try {
@@ -97,6 +98,7 @@ export default function SettingsView({ onBack, onConfigSaved }) {
         }
         updatedProviders[activeProviderId][field] = value;
         setLlmConfigs({ ...llmConfigs, providers: updatedProviders });
+        setIsDirty(true);
     };
 
     const handleAddModel = () => {
@@ -176,7 +178,7 @@ export default function SettingsView({ onBack, onConfigSaved }) {
 
             if (response.data.success) {
                 // Background sync success, no alert needed
-                fetchConfigs();
+                setIsDirty(false);
             } else {
                 console.error('同步失败: ' + (response.data.error || '未知错误'));
             }
@@ -373,7 +375,10 @@ export default function SettingsView({ onBack, onConfigSaved }) {
                                             {isDefault ? '当前默认' : '启用并设为默认'}
                                         </span>
                                         <div
-                                            onClick={() => setIsDefault(!isDefault)}
+                                            onClick={() => {
+                                                setIsDefault(!isDefault);
+                                                setIsDirty(true);
+                                            }}
                                             className="w-12 h-6 rounded-full p-1 cursor-pointer transition-all duration-300 relative border border-black/10 bg-white shadow-inner"
                                         >
                                             <div className={clsx(
