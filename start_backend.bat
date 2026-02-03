@@ -1,3 +1,0 @@
-@echo off
-echo Starting Database Agent Backend...
-python -m uvicorn app.api.server:app --reload --host 0.0.0.0 --port 8000
